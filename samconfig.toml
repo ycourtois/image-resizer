@@ -1,0 +1,13 @@
+version=0.1
+[default.global.parameters]
+region = "eu-west-1"
+stack_name = "yco-image-resizer"
+s3_bucket = "yco-sam"
+s3_prefix = "sam"
+
+[default.package.parameters]
+output_template_file = "template_packaged.yaml"
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "BucketName=yco-image-resizer"

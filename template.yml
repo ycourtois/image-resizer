@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: 'Read image files and create a resized copy in the same bucket'
+
+###############################################################################
+### Parameters
+###############################################################################
+Parameters:
+  Project:
+    Type: String
+    Default: "yco"
+  Environment:
+    Default: "dev"
+    Type: String
+  FunctionName:
+    Type: String
+    Default: "image-resizer"
+  BucketName:
+    Type: String
+  ImagePath:
+    Type: String
+    Default: "images"
+  ImageExtension:
+    Type: String
+    Default: "jpg"
+  NewImageExtension:
+    Type: String
+    Default: ".jpeg"
+  NewSize:
+    Type: String
+    Default: "50x50"
+  NewImageDescription:
+    Type: String
+    Default: "Awesome image"
+
+
+###############################################################################
+### Resources
+###############################################################################
+Resources:
+
+  Bucket:
+    DeletionPolicy: Retain
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Environment
+          Value: !Ref Environment
+
+  ImageResizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub "${Project}-${Environment}-${FunctionName}"
+      CodeUri: src/
+      Handler: app.handler
+      Runtime: python3.8
+      FunctionName: !Sub "${Project}-${Environment}-${FunctionName}"
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          NEW_SIZE: !Ref NewSize
+          NEW_IMAGE_DESCRIPTION: !Ref NewImageDescription
+          NEW_IMAGE_EXTENSION: !Ref NewImageExtension
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: !Sub "arn:aws:s3:::${BucketName}/images/*"
+      AutoPublishAlias: live
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !Ref Bucket
+            Events:
+              # request notification when an object is created regardless of the API used
+              - "s3:ObjectCreated:*"
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: !Ref ImagePath
+                  - Name: suffix
+                    Value: !Ref ImageExtension
+      Tags:
+        Project: !Ref Project
+        Environment: !Ref Environment
+
+###############################################################################
+### Output
+###############################################################################
+Outputs:
+  FunctionArn:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt ImageResizerFunction.Arn
+  FunctionIamRoleArn:
+    Description: "Implicit IAM Role created for Lambda function"
+    Value: !GetAtt ImageResizerFunctionRole.Arn
+  FunctionAliasliveArn:
+    Value: !Ref ImageResizerFunctionAliaslive
+  BucketName:
+    Value: !Ref Bucket
+  BucketArn:
+    Value: !GetAtt Bucket.Arn

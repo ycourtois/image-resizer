@@ -1,0 +1,5 @@
+-r src/requirements.txt
+boto3==1.16.31
+aws-sam-cli==1.22.0
+moto==2.0.5
+pytest==6.2.3
